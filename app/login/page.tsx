@@ -139,11 +139,11 @@ export default function LoginPage() {
               variant="outline"
               size="sm"
               className="w-full justify-between text-left"
-              onClick={() => handleTestLogin('admin@example.com')}
+              onClick={() => handleTestLogin('admin@acme.com')}
               disabled={isLoading}
             >
-              <span className="font-medium">Admin User</span>
-              <span className="text-xs text-muted-foreground">admin@example.com</span>
+              <span className="font-medium">John Admin</span>
+              <span className="text-xs text-muted-foreground">admin@acme.com</span>
             </Button>
 
             <Button
@@ -151,11 +151,11 @@ export default function LoginPage() {
               variant="outline"
               size="sm"
               className="w-full justify-between text-left"
-              onClick={() => handleTestLogin('pm@example.com')}
+              onClick={() => handleTestLogin('mike@acme.com')}
               disabled={isLoading}
             >
-              <span className="font-medium">Project Manager</span>
-              <span className="text-xs text-muted-foreground">pm@example.com</span>
+              <span className="font-medium">Mike Manager</span>
+              <span className="text-xs text-muted-foreground">mike@acme.com</span>
             </Button>
 
             <Button
@@ -163,11 +163,11 @@ export default function LoginPage() {
               variant="outline"
               size="sm"
               className="w-full justify-between text-left"
-              onClick={() => handleTestLogin('developer@example.com')}
+              onClick={() => handleTestLogin('sarah@acme.com')}
               disabled={isLoading}
             >
-              <span className="font-medium">Team Member</span>
-              <span className="text-xs text-muted-foreground">developer@example.com</span>
+              <span className="font-medium">Sarah Developer</span>
+              <span className="text-xs text-muted-foreground">sarah@acme.com</span>
             </Button>
 
             <Button
@@ -175,11 +175,11 @@ export default function LoginPage() {
               variant="outline"
               size="sm"
               className="w-full justify-between text-left"
-              onClick={() => handleTestLogin('resource@example.com')}
+              onClick={() => handleTestLogin('lisa@acme.com')}
               disabled={isLoading}
             >
-              <span className="font-medium">Resource Manager</span>
-              <span className="text-xs text-muted-foreground">resource@example.com</span>
+              <span className="font-medium">Lisa Designer</span>
+              <span className="text-xs text-muted-foreground">lisa@acme.com</span>
             </Button>
           </div>
 

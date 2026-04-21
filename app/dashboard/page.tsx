@@ -1,11 +1,66 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { useAuth } from '@/lib/auth-context'
+import { supabase } from '@/lib/supabase'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 
 export default function DashboardPage() {
   const { userProfile } = useAuth()
+  const [stats, setStats] = useState({
+    activeProjects: 0,
+    activeTasks: 0,
+    hoursLogged: 0,
+  })
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      if (!userProfile) return
+
+      try {
+        // Fetch active projects count
+        const { count: projectCount } = await supabase
+          .from('projects')
+          .select('*', { count: 'exact', head: true })
+          .eq('organization_id', userProfile.organization_id)
+          .eq('status', 'active')
+
+        // Fetch tasks assigned to user
+        const { count: taskCount } = await supabase
+          .from('tasks')
+          .select('*', { count: 'exact', head: true })
+          .eq('assigned_to', userProfile.id)
+          .in('status', ['not_started', 'in_progress'])
+
+        // Fetch hours logged this week
+        const startOfWeek = new Date()
+        startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay())
+        startOfWeek.setHours(0, 0, 0, 0)
+
+        const { data: timeEntries } = await supabase
+          .from('time_entries')
+          .select('hours')
+          .eq('user_id', userProfile.id)
+          .gte('date', startOfWeek.toISOString().split('T')[0])
+
+        const totalHours = timeEntries?.reduce((sum, entry) => sum + (entry.hours || 0), 0) || 0
+
+        setStats({
+          activeProjects: projectCount || 0,
+          activeTasks: taskCount || 0,
+          hoursLogged: totalHours,
+        })
+      } catch (error) {
+        console.error('[v0] Error fetching dashboard stats:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchStats()
+  }, [userProfile])
 
   return (
     <div className="p-8 space-y-8">
@@ -20,8 +75,8 @@ export default function DashboardPage() {
             <CardTitle className="text-sm font-medium">Active Projects</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground mt-1">Coming soon</p>
+            <div className="text-3xl font-bold">{isLoading ? '-' : stats.activeProjects}</div>
+            <p className="text-xs text-muted-foreground mt-1">In your organization</p>
           </CardContent>
         </Card>
 
@@ -30,7 +85,7 @@ export default function DashboardPage() {
             <CardTitle className="text-sm font-medium">Active Tasks</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">0</div>
+            <div className="text-3xl font-bold">{isLoading ? '-' : stats.activeTasks}</div>
             <p className="text-xs text-muted-foreground mt-1">Assigned to you</p>
           </CardContent>
         </Card>
@@ -40,7 +95,7 @@ export default function DashboardPage() {
             <CardTitle className="text-sm font-medium">Hours Logged</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">0</div>
+            <div className="text-3xl font-bold">{isLoading ? '-' : stats.hoursLogged}</div>
             <p className="text-xs text-muted-foreground mt-1">This week</p>
           </CardContent>
         </Card>

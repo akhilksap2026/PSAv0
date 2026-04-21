@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/lib/auth-context'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -14,6 +15,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+  const { login } = useAuth()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -34,12 +36,14 @@ export default function LoginPage() {
         return
       }
 
-      // Store user info in session storage
-      sessionStorage.setItem('user_id', userData.id)
-      sessionStorage.setItem('email', userData.email)
-      sessionStorage.setItem('organization_id', userData.organization_id)
-      sessionStorage.setItem('role', userData.role)
-      sessionStorage.setItem('full_name', userData.full_name)
+      // Use auth context login
+      login({
+        id: userData.id,
+        email: userData.email,
+        organization_id: userData.organization_id,
+        role: userData.role,
+        full_name: userData.full_name,
+      })
 
       router.push('/dashboard')
     } catch (err) {
@@ -66,12 +70,14 @@ export default function LoginPage() {
         return
       }
 
-      // Store user info in session storage
-      sessionStorage.setItem('user_id', userData.id)
-      sessionStorage.setItem('email', userData.email)
-      sessionStorage.setItem('organization_id', userData.organization_id)
-      sessionStorage.setItem('role', userData.role)
-      sessionStorage.setItem('full_name', userData.full_name)
+      // Use auth context login
+      login({
+        id: userData.id,
+        email: userData.email,
+        organization_id: userData.organization_id,
+        role: userData.role,
+        full_name: userData.full_name,
+      })
 
       router.push('/dashboard')
     } catch (err) {

@@ -48,18 +48,21 @@ export default function ResourcesPage() {
           .eq('organization_id', userProfile.organization_id)
           .eq('status', 'active')
 
-        // Fetch project members to calculate allocations
-        const { data: membersData } = await supabase
-          .from('project_members')
-          .select('*')
+        // Fetch tasks to calculate project assignments
+        const { data: tasksData } = await supabase
+          .from('tasks')
+          .select('assigned_to, project_id')
 
         if (usersData) {
           setUsers(usersData)
 
-          // Calculate allocations per user
+          // Calculate allocations per user based on task assignments
           const allocationMap: Record<string, AllocationSummary> = {}
           usersData.forEach((user) => {
-            const projectCount = membersData?.filter((m) => m.user_id === user.id).length || 0
+            // Count unique projects the user is assigned tasks in
+            const assignedTasks = tasksData?.filter((t) => t.assigned_to === user.id) || []
+            const uniqueProjects = new Set(assignedTasks.map(t => t.project_id))
+            const projectCount = uniqueProjects.size
             allocationMap[user.id] = {
               user,
               projectCount,

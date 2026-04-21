@@ -1,6 +1,7 @@
 'use client'
 
-import { redirect } from 'next/navigation'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { Sidebar } from '@/components/layout/sidebar'
 import { Header } from '@/components/layout/header'
@@ -11,6 +12,13 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const { userProfile, isLoading } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!isLoading && !userProfile) {
+      router.replace('/login')
+    }
+  }, [isLoading, userProfile, router])
 
   if (isLoading) {
     return (
@@ -21,7 +29,11 @@ export default function DashboardLayout({
   }
 
   if (!userProfile) {
-    redirect('/login')
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    )
   }
 
   return (

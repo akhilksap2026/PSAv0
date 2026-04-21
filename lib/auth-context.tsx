@@ -10,6 +10,7 @@ interface AuthContextType {
   userProfile: UserProfile | null
   isLoading: boolean
   isAuthenticated: boolean
+  login: (user: { id: string; email: string; organization_id: string; role: string; full_name: string }) => void
   logout: () => Promise<void>
 }
 
@@ -58,6 +59,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initAuth()
   }, [])
 
+  const login = (user: { id: string; email: string; organization_id: string; role: string; full_name: string }) => {
+    // Store in session storage
+    sessionStorage.setItem('user_id', user.id)
+    sessionStorage.setItem('email', user.email)
+    sessionStorage.setItem('organization_id', user.organization_id)
+    sessionStorage.setItem('role', user.role)
+    sessionStorage.setItem('full_name', user.full_name)
+
+    // Update state immediately
+    setUserProfile({
+      id: user.id,
+      auth_id: null,
+      organization_id: user.organization_id,
+      email: user.email,
+      full_name: user.full_name,
+      avatar_url: null,
+      role: user.role as any,
+      is_active: true,
+      hourly_cost: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+  }
+
   const logout = async () => {
     try {
       // Clear session storage
@@ -80,6 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         userProfile,
         isLoading,
         isAuthenticated: !!userProfile,
+        login,
         logout,
       }}
     >

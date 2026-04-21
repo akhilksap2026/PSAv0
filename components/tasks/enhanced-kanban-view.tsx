@@ -11,22 +11,52 @@ import { AlertCircle } from 'lucide-react'
 import {
   DndContext,
   DragEndEvent,
+  DragOverEvent,
   DragOverlay,
+  DragStartEvent,
   closestCorners,
   PointerSensor,
   useSensor,
   useSensors,
+  useDroppable,
 } from '@dnd-kit/core'
 import {
   arrayMove,
   SortableContext,
   rectSortingStrategy,
+  verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
 type Task = Database['public']['Tables']['tasks']['Row']
 type TaskStatus = Task['status']
+
+interface DroppableColumnProps {
+  id: TaskStatus
+  children: React.ReactNode
+  label: string
+  count: number
+}
+
+function DroppableColumn({ id, children, label, count }: DroppableColumnProps) {
+  const { setNodeRef, isOver } = useDroppable({ id })
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`bg-muted rounded-lg p-4 min-h-96 flex flex-col transition-colors ${isOver ? 'bg-primary/10 ring-2 ring-primary/50' : ''}`}
+    >
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-semibold text-sm">{label}</h3>
+        <Badge variant="outline" className="text-xs">
+          {count}
+        </Badge>
+      </div>
+      {children}
+    </div>
+  )
+}
 
 interface KanbanCardProps {
   task: Task
@@ -117,8 +147,8 @@ export function EnhancedKanbanView({
     })
   )
 
-  const handleDragStart = (event: any) => {
-    setActiveId(event.active.id)
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string)
   }
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -128,10 +158,24 @@ export function EnhancedKanbanView({
     if (!over) return
 
     const draggedTaskId = active.id as string
-    const newStatus = over.id as TaskStatus
-
     const draggedTask = tasks.find(t => t.id === draggedTaskId)
-    if (!draggedTask || draggedTask.status === newStatus) return
+    if (!draggedTask) return
+
+    // Determine new status - check if dropped on column or another task
+    let newStatus: TaskStatus
+
+    // If over.id is a status (column), use it directly
+    if (statuses.includes(over.id as TaskStatus)) {
+      newStatus = over.id as TaskStatus
+    } else {
+      // Otherwise, find the task that was dropped on and get its status
+      const overTask = tasks.find(t => t.id === over.id)
+      if (!overTask) return
+      newStatus = overTask.status
+    }
+
+    // Skip if status unchanged
+    if (draggedTask.status === newStatus) return
 
     setUpdatingTaskId(draggedTaskId)
     setError(null)
@@ -175,15 +219,13 @@ export function EnhancedKanbanView({
             const statusTasks = tasks.filter(t => t.status === status)
 
             return (
-              <div key={status} className="bg-muted rounded-lg p-4 min-h-96 flex flex-col">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-sm">{statusLabels[status]}</h3>
-                  <Badge variant="outline" className="text-xs">
-                    {statusTasks.length}
-                  </Badge>
-                </div>
-
-                <SortableContext items={statusTasks.map(t => t.id)} strategy={rectSortingStrategy}>
+              <DroppableColumn
+                key={status}
+                id={status}
+                label={statusLabels[status]}
+                count={statusTasks.length}
+              >
+                <SortableContext items={statusTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
                   <div className="space-y-3 flex-1 overflow-y-auto">
                     {statusTasks.map(task => (
                       <KanbanCard
@@ -195,13 +237,13 @@ export function EnhancedKanbanView({
                     ))}
 
                     {statusTasks.length === 0 && (
-                      <div className="text-center py-8 text-muted-foreground text-sm">
+                      <div className="text-center py-8 text-muted-foreground text-sm border-2 border-dashed border-muted-foreground/20 rounded-lg">
                         Drop tasks here
                       </div>
                     )}
                   </div>
                 </SortableContext>
-              </div>
+              </DroppableColumn>
             )
           })}
         </div>

@@ -11,7 +11,8 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Check, X, Clock } from 'lucide-react'
+import { Textarea } from '@/components/ui/textarea'
 import { formatISO, subWeeks, addWeeks, startOfWeek, format } from 'date-fns'
 
 type Timesheet = Database['public']['Tables']['timesheets']['Row']
@@ -26,6 +27,12 @@ interface WeekData {
 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
+type User = Database['public']['Tables']['users']['Row']
+
+interface TimesheetWithUser extends Timesheet {
+  user?: User
+}
+
 export default function TimesheetsPage() {
   const { userProfile } = useAuth()
   const [currentWeekStart, setCurrentWeekStart] = useState(new Date())
@@ -34,6 +41,10 @@ export default function TimesheetsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [formData, setFormData] = useState<Record<string, number>>({})
+  const [pendingTimesheets, setPendingTimesheets] = useState<TimesheetWithUser[]>([])
+  const [historyTimesheets, setHistoryTimesheets] = useState<Timesheet[]>([])
+  const [approvalComment, setApprovalComment] = useState('')
+  const [processingId, setProcessingId] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -82,6 +93,42 @@ export default function TimesheetsPage() {
         })
         setFormData(formDataInit)
         setProjects(projectsData || [])
+
+        // Fetch pending timesheets for approval (admin/PM only)
+        if (userProfile.role === 'admin' || userProfile.role === 'project_manager') {
+          const { data: pendingData } = await supabase
+            .from('timesheets')
+            .select('*')
+            .eq('organization_id', userProfile.organization_id)
+            .eq('status', 'submitted')
+            .neq('user_id', userProfile.id)
+            .order('submitted_at', { ascending: false })
+
+          if (pendingData) {
+            // Fetch user details for each timesheet
+            const userIds = [...new Set(pendingData.map(t => t.user_id))]
+            const { data: usersData } = await supabase
+              .from('users')
+              .select('*')
+              .in('id', userIds)
+
+            const timesheetsWithUsers = pendingData.map(ts => ({
+              ...ts,
+              user: usersData?.find(u => u.id === ts.user_id),
+            }))
+            setPendingTimesheets(timesheetsWithUsers)
+          }
+        }
+
+        // Fetch user's timesheet history
+        const { data: historyData } = await supabase
+          .from('timesheets')
+          .select('*')
+          .eq('user_id', userProfile.id)
+          .order('week_starting', { ascending: false })
+          .limit(10)
+
+        setHistoryTimesheets(historyData || [])
       } catch (error) {
         console.error('Error fetching timesheet:', error)
       } finally {
@@ -145,17 +192,39 @@ export default function TimesheetsPage() {
             .update({ hours, updated_at: new Date().toISOString() })
             .eq('id', existingEntry.id)
         } else {
-          await supabase.from('time_entries').insert([
-            {
-              user_id: userProfile.id,
-              project_id: projectId,
-              task_id: null,
-              date: dateISO,
-              hours,
-              is_billable: true,
-              description: '',
-            },
-          ])
+          // First get or create timesheet for this week
+          const weekStartISO = formatISO(weekStart, { representation: 'date' })
+          let timesheetId = weekData?.timesheet?.id
+
+          if (!timesheetId) {
+            const { data: newTimesheet } = await supabase
+              .from('timesheets')
+              .insert([{
+                user_id: userProfile.id,
+                organization_id: userProfile.organization_id,
+                week_starting: weekStartISO,
+                status: 'draft',
+                total_hours: 0,
+              }])
+              .select()
+              .single()
+
+            timesheetId = newTimesheet?.id
+          }
+
+          if (timesheetId) {
+            await supabase.from('time_entries').insert([
+              {
+                timesheet_id: timesheetId,
+                user_id: userProfile.id,
+                project_id: projectId,
+                task_id: null,
+                date: dateISO,
+                hours,
+                is_billable: true,
+              },
+            ])
+          }
         }
       }
     } catch (error) {
@@ -181,7 +250,7 @@ export default function TimesheetsPage() {
 
       // Create or update timesheet
       if (!weekData.timesheet) {
-        await supabase.from('timesheets').insert([
+        const { data: newTs } = await supabase.from('timesheets').insert([
           {
             user_id: userProfile.id,
             organization_id: userProfile.organization_id,
@@ -190,7 +259,11 @@ export default function TimesheetsPage() {
             total_hours: weekData.weekTotal,
             submitted_at: new Date().toISOString(),
           },
-        ])
+        ]).select().single()
+
+        if (newTs) {
+          setWeekData(prev => prev ? { ...prev, timesheet: newTs } : null)
+        }
       } else {
         await supabase
           .from('timesheets')
@@ -200,6 +273,11 @@ export default function TimesheetsPage() {
             submitted_at: new Date().toISOString(),
           })
           .eq('id', weekData.timesheet.id)
+
+        setWeekData(prev => prev && prev.timesheet ? {
+          ...prev,
+          timesheet: { ...prev.timesheet, status: 'submitted' }
+        } : null)
       }
 
       alert('Timesheet submitted successfully!')
@@ -208,6 +286,66 @@ export default function TimesheetsPage() {
       alert('Failed to submit timesheet')
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const handleApproveTimesheet = async (timesheetId: string) => {
+    setProcessingId(timesheetId)
+    try {
+      const { error } = await supabase
+        .from('timesheets')
+        .update({
+          status: 'approved',
+          approved_at: new Date().toISOString(),
+        })
+        .eq('id', timesheetId)
+
+      if (error) throw error
+
+      setPendingTimesheets(prev => prev.filter(ts => ts.id !== timesheetId))
+      setApprovalComment('')
+    } catch (error) {
+      console.error('Error approving timesheet:', error)
+      alert('Failed to approve timesheet')
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  const handleRejectTimesheet = async (timesheetId: string) => {
+    if (!approvalComment.trim()) {
+      alert('Please provide a reason for rejection')
+      return
+    }
+
+    setProcessingId(timesheetId)
+    try {
+      const { error } = await supabase
+        .from('timesheets')
+        .update({
+          status: 'rejected',
+        })
+        .eq('id', timesheetId)
+
+      if (error) throw error
+
+      setPendingTimesheets(prev => prev.filter(ts => ts.id !== timesheetId))
+      setApprovalComment('')
+    } catch (error) {
+      console.error('Error rejecting timesheet:', error)
+      alert('Failed to reject timesheet')
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  const getStatusBadgeColor = (status: Timesheet['status']) => {
+    switch (status) {
+      case 'draft': return 'bg-gray-100 text-gray-800'
+      case 'submitted': return 'bg-blue-100 text-blue-800'
+      case 'approved': return 'bg-green-100 text-green-800'
+      case 'rejected': return 'bg-red-100 text-red-800'
+      default: return 'bg-gray-100 text-gray-800'
     }
   }
 
@@ -359,20 +497,127 @@ export default function TimesheetsPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="approvals">
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-muted-foreground">Coming soon - Timesheet approvals (Admin only)</p>
-            </CardContent>
-          </Card>
+        <TabsContent value="approvals" className="space-y-4">
+          {userProfile?.role !== 'admin' && userProfile?.role !== 'project_manager' ? (
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-muted-foreground text-center">You don&apos;t have permission to approve timesheets</p>
+              </CardContent>
+            </Card>
+          ) : pendingTimesheets.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center space-y-2">
+                  <Check className="h-12 w-12 mx-auto text-green-500" />
+                  <p className="text-muted-foreground">No pending timesheets to approve</p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            pendingTimesheets.map(timesheet => (
+              <Card key={timesheet.id}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-lg">{timesheet.user?.full_name || 'Unknown User'}</CardTitle>
+                      <CardDescription>
+                        Week of {timesheet.week_starting} - {timesheet.total_hours}h total
+                      </CardDescription>
+                    </div>
+                    <Badge className={getStatusBadgeColor(timesheet.status)}>
+                      {timesheet.status}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Submitted</p>
+                      <p className="font-medium">
+                        {timesheet.submitted_at ? format(new Date(timesheet.submitted_at), 'MMM dd, yyyy HH:mm') : 'N/A'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Email</p>
+                      <p className="font-medium">{timesheet.user?.email || 'N/A'}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm text-muted-foreground">Comment (required for rejection)</label>
+                    <Textarea
+                      placeholder="Add a comment..."
+                      value={approvalComment}
+                      onChange={(e) => setApprovalComment(e.target.value)}
+                      rows={2}
+                    />
+                  </div>
+
+                  <div className="flex gap-3 justify-end">
+                    <Button
+                      variant="outline"
+                      className="gap-2 text-destructive border-destructive hover:bg-destructive/10"
+                      onClick={() => handleRejectTimesheet(timesheet.id)}
+                      disabled={processingId === timesheet.id}
+                    >
+                      <X className="h-4 w-4" />
+                      Reject
+                    </Button>
+                    <Button
+                      className="gap-2"
+                      onClick={() => handleApproveTimesheet(timesheet.id)}
+                      disabled={processingId === timesheet.id}
+                    >
+                      <Check className="h-4 w-4" />
+                      {processingId === timesheet.id ? 'Processing...' : 'Approve'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
         </TabsContent>
 
-        <TabsContent value="history">
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-muted-foreground">Previous timesheets will appear here</p>
-            </CardContent>
-          </Card>
+        <TabsContent value="history" className="space-y-4">
+          {historyTimesheets.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center space-y-2">
+                  <Clock className="h-12 w-12 mx-auto text-muted-foreground" />
+                  <p className="text-muted-foreground">No timesheet history yet</p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Timesheet History</CardTitle>
+                <CardDescription>Your past timesheet submissions</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {historyTimesheets.map(ts => (
+                    <div key={ts.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div>
+                        <p className="font-medium">Week of {ts.week_starting}</p>
+                        <p className="text-sm text-muted-foreground">{ts.total_hours}h logged</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Badge className={getStatusBadgeColor(ts.status)}>
+                          {ts.status}
+                        </Badge>
+                        {ts.approved_at && (
+                          <span className="text-xs text-muted-foreground">
+                            Approved {format(new Date(ts.approved_at), 'MMM dd')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
     </div>

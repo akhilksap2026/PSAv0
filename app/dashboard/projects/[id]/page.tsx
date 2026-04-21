@@ -3,234 +3,227 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { useAuth } from '@/lib/auth-context'
 import type { Database } from '@/lib/supabase'
+import { useAuth } from '@/lib/auth-context'
+import { TaskViews } from '@/components/tasks/task-views'
+import { RichTextEditor } from '@/components/documents/rich-text-editor'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { Plus } from 'lucide-react'
-import { TaskListView, TaskKanbanView, TaskGanttView } from '@/components/tasks/task-views'
-import { EnhancedKanbanView } from '@/components/tasks/enhanced-kanban-view'
-import { GanttChart } from '@/components/tasks/gantt-chart'
-import { TaskFormModal } from '@/components/tasks/task-form-modal'
+import { Input } from '@/components/ui/input'
+import { AlertDescription, Alert } from '@/components/ui/alert'
+import { ArrowLeft, Plus, FileText, Lock, Globe, Trash2 } from 'lucide-react'
+import Link from 'next/link'
 
 type Project = Database['public']['Tables']['projects']['Row']
-type Task = Database['public']['Tables']['tasks']['Row']
+type Phase = Database['public']['Tables']['phases']['Row']
+
+interface DocumentSpace {
+  id: string
+  name: string
+  type: 'private' | 'shared'
+  documents: Array<{
+    id: string
+    title: string
+    updated_at: string
+  }>
+}
 
 export default function ProjectDetailPage() {
   const params = useParams()
-  const { userProfile } = useAuth()
   const projectId = params.id as string
+  const { userProfile } = useAuth()
   const [project, setProject] = useState<Project | null>(null)
-  const [tasks, setTasks] = useState<Task[]>([])
+  const [phases, setPhases] = useState<Phase[]>([])
+  const [spaces, setSpaces] = useState<DocumentSpace[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [taskModalOpen, setTaskModalOpen] = useState(false)
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  const [activeSpace, setActiveSpace] = useState<string | null>(null)
+  const [newSpaceName, setNewSpaceName] = useState('')
+  const [newSpaceType, setNewSpaceType] = useState<'private' | 'shared'>('private')
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [projectData, tasksData] = await Promise.all([
-          supabase
-            .from('projects')
-            .select('*')
-            .eq('id', projectId)
-            .single(),
-          supabase
-            .from('tasks')
-            .select('*')
-            .eq('project_id', projectId)
-            .order('sequence_number', { ascending: true }),
-        ])
+    const fetchProjectData = async () => {
+      if (!projectId) return
 
-        if (projectData.data) setProject(projectData.data)
-        if (tasksData.data) setTasks(tasksData.data)
+      setIsLoading(true)
+      try {
+        // Fetch project
+        const { data: projectData } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('id', projectId)
+          .single()
+
+        setProject(projectData || null)
+
+        // Fetch phases
+        const { data: phasesData } = await supabase
+          .from('phases')
+          .select('*')
+          .eq('project_id', projectId)
+          .order('start_date', { ascending: true })
+
+        setPhases(phasesData || [])
+
+        // Fetch spaces
+        const { data: spacesData } = await supabase
+          .from('project_spaces')
+          .select('*, space_documents(*)')
+          .eq('project_id', projectId)
+
+        setSpaces(spacesData as any[] || [])
       } catch (error) {
-        console.error('Error fetching project:', error)
+        console.error('[v0] Error fetching project:', error)
       } finally {
         setIsLoading(false)
       }
     }
 
-    fetchData()
+    fetchProjectData()
   }, [projectId])
 
-  const handleAddTask = () => {
-    setSelectedTask(null)
-    setTaskModalOpen(true)
-  }
+  const handleCreateSpace = async () => {
+    if (!newSpaceName.trim() || !projectId) return
 
-  const handleEditTask = (task: Task) => {
-    setSelectedTask(task)
-    setTaskModalOpen(true)
-  }
-
-  const handleRefreshTasks = async () => {
     try {
       const { data } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('project_id', projectId)
-        .order('sequence_number', { ascending: true })
+        .from('project_spaces')
+        .insert([
+          {
+            project_id: projectId,
+            name: newSpaceName,
+            type: newSpaceType,
+            created_by: userProfile?.id,
+          },
+        ])
+        .select()
 
-      if (data) setTasks(data)
+      if (data?.[0]) {
+        setSpaces([...spaces, { ...data[0], documents: [] }])
+        setNewSpaceName('')
+      }
     } catch (error) {
-      console.error('Error refreshing tasks:', error)
+      console.error('[v0] Error creating space:', error)
     }
   }
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    )
+    return <div className="p-8 text-center">Loading...</div>
   }
 
   if (!project) {
-    return (
-      <div className="p-8">
-        <p className="text-muted-foreground">Project not found</p>
-      </div>
-    )
+    return <div className="p-8 text-center">Project not found</div>
   }
 
   return (
-    <div className="p-8 space-y-8">
-      <div className="space-y-4">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold">{project.name}</h1>
-            <p className="text-muted-foreground mt-1">{project.description}</p>
-          </div>
-          <Badge className="h-fit">{project.status}</Badge>
-        </div>
-
-        <div className="grid grid-cols-4 gap-4">
-          <div>
-            <p className="text-sm text-muted-foreground">Start Date</p>
-            <p className="font-medium">{project.start_date || 'Not set'}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">End Date</p>
-            <p className="font-medium">{project.end_date || 'Not set'}</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Budget</p>
-            <p className="font-medium">
-              {project.expected_budget
-                ? `${project.currency} ${project.expected_budget.toLocaleString()}`
-                : 'Not set'}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Billing Method</p>
-            <p className="font-medium capitalize">{project.billing_method.replace(/_/g, ' ')}</p>
-          </div>
-        </div>
+    <div className="p-8 space-y-6">
+      <div className="flex items-center gap-2">
+        <Link href="/dashboard/projects">
+          <Button variant="ghost" size="sm" className="gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            Back to Projects
+          </Button>
+        </Link>
       </div>
 
-      <Tabs defaultValue="list" className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">{project.name}</h1>
+          <p className="text-muted-foreground mt-1">{project.description}</p>
+        </div>
+        <Badge variant="secondary">{project.status}</Badge>
+      </div>
+
+      <Tabs defaultValue="tasks" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="list">List View</TabsTrigger>
-          <TabsTrigger value="kanban">Kanban Board</TabsTrigger>
-          <TabsTrigger value="gantt">Timeline</TabsTrigger>
-          <TabsTrigger value="phases">Phases</TabsTrigger>
+          <TabsTrigger value="tasks">Tasks</TabsTrigger>
+          <TabsTrigger value="spaces">Spaces</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="list" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Tasks - List View</h2>
-            <Button className="gap-2" size="sm" onClick={handleAddTask}>
-              <Plus className="h-4 w-4" />
-              Add Task
-            </Button>
-          </div>
-
-          {tasks.length === 0 ? (
-            <Card>
-              <CardContent className="pt-6">
-                <p className="text-center text-muted-foreground">No tasks yet</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <TaskListView
-              projectId={projectId}
-              tasks={tasks}
-              onTaskUpdate={handleRefreshTasks}
-              onTaskEdit={handleEditTask}
-            />
-          )}
+        <TabsContent value="tasks">
+          <TaskViews projectId={projectId} />
         </TabsContent>
 
-        <TabsContent value="kanban" className="space-y-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">Tasks - Kanban Board</h2>
-            <Button className="gap-2" size="sm" onClick={handleAddTask}>
-              <Plus className="h-4 w-4" />
-              Add Task
-            </Button>
-          </div>
-
-          {tasks.length === 0 ? (
-            <Card>
-              <CardContent className="pt-6">
-                <p className="text-center text-muted-foreground">No tasks yet</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <EnhancedKanbanView
-              projectId={projectId}
-              tasks={tasks}
-              onTaskUpdate={handleRefreshTasks}
-              onTaskEdit={handleEditTask}
-            />
-          )}
-        </TabsContent>
-
-        <TabsContent value="gantt" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Tasks - Timeline</h2>
-            <Button className="gap-2" size="sm" onClick={handleAddTask}>
-              <Plus className="h-4 w-4" />
-              Add Task
-            </Button>
-          </div>
-
-          {tasks.length === 0 ? (
-            <Card>
-              <CardContent className="pt-6">
-                <p className="text-center text-muted-foreground">No tasks yet</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <GanttChart projectId={projectId} tasks={tasks} onTaskUpdate={handleRefreshTasks} />
-          )}
-        </TabsContent>
-
-        <TabsContent value="phases">
+        <TabsContent value="spaces" className="space-y-4">
           <Card>
-            <CardContent className="pt-6">
-              <p className="text-muted-foreground">Phase management coming soon</p>
+            <CardHeader>
+              <CardTitle>Create New Space</CardTitle>
+              <CardDescription>Organize project documents and collaboration materials</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Space name (e.g., Design Specs, Requirements)"
+                  value={newSpaceName}
+                  onChange={(e) => setNewSpaceName(e.target.value)}
+                  className="flex-1"
+                />
+                <select
+                  value={newSpaceType}
+                  onChange={(e) => setNewSpaceType(e.target.value as 'private' | 'shared')}
+                  className="px-3 py-2 border rounded-md text-sm"
+                >
+                  <option value="private">Private</option>
+                  <option value="shared">Shared</option>
+                </select>
+                <Button onClick={handleCreateSpace} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Create Space
+                </Button>
+              </div>
             </CardContent>
           </Card>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {spaces.map((space) => (
+              <Card key={space.id}>
+                <CardHeader className="flex flex-row items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <CardTitle className="text-lg">{space.name}</CardTitle>
+                      <Badge variant={space.type === 'private' ? 'secondary' : 'outline'} className="text-xs">
+                        {space.type === 'private' ? (
+                          <>
+                            <Lock className="h-3 w-3 mr-1" />
+                            Private
+                          </>
+                        ) : (
+                          <>
+                            <Globe className="h-3 w-3 mr-1" />
+                            Shared
+                          </>
+                        )}
+                      </Badge>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {space.documents && space.documents.length > 0 ? (
+                    <div className="space-y-2">
+                      {space.documents.map((doc) => (
+                        <div key={doc.id} className="flex items-center justify-between p-2 bg-muted rounded text-sm">
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-muted-foreground" />
+                            <span>{doc.title}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No documents yet</p>
+                  )}
+
+                  <Button variant="outline" className="w-full gap-2" size="sm">
+                    <Plus className="h-4 w-4" />
+                    Add Document
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </TabsContent>
       </Tabs>
-
-      {userProfile && (
-        <TaskFormModal
-          open={taskModalOpen}
-          task={selectedTask}
-          projectId={projectId}
-          userId={userProfile.id}
-          onClose={() => {
-            setTaskModalOpen(false)
-            setSelectedTask(null)
-          }}
-          onSuccess={handleRefreshTasks}
-        />
-      )}
     </div>
   )
 }

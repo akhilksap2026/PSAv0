@@ -17,25 +17,29 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { data, error } = await supabaseAdmin
+    console.log('[v0] Fetching projects for org:', organizationId)
+
+    const { data, error, count } = await supabaseAdmin
       .from('projects')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('organization_id', organizationId)
       .order('created_at', { ascending: false })
 
     if (error) {
       console.error('[v0] Supabase error:', error)
       return NextResponse.json(
-        { error: error.message },
+        { error: error.message, details: error },
         { status: 500 }
       )
     }
 
-    return NextResponse.json({ data })
+    console.log('[v0] Found', count, 'projects')
+
+    return NextResponse.json({ data, count })
   } catch (err) {
     console.error('[v0] API error:', err)
     return NextResponse.json(
-      { error: 'Failed to fetch projects' },
+      { error: 'Failed to fetch projects', details: String(err) },
       { status: 500 }
     )
   }

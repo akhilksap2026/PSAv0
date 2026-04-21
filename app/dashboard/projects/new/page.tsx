@@ -37,6 +37,8 @@ export default function NewProjectPage() {
   })
   const [selectedMembers, setSelectedMembers] = useState<string[]>([])
   const [teamMembers, setTeamMembers] = useState<User[]>([])
+  const [templates, setTemplates] = useState<any[]>([])
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { userProfile } = useAuth()
@@ -45,22 +47,33 @@ export default function NewProjectPage() {
   useEffect(() => {
     if (!userProfile) return
     
-    const fetchTeamMembers = async () => {
+    const fetchData = async () => {
       try {
-        const { data } = await supabase
+        // Fetch team members
+        const { data: membersData } = await supabase
           .from('users')
           .select('*')
           .eq('organization_id', userProfile.organization_id)
           .neq('id', userProfile.id)
           .order('full_name', { ascending: true })
         
-        setTeamMembers(data || [])
+        setTeamMembers(membersData || [])
+
+        // Fetch templates
+        const { data: templatesData } = await supabase
+          .from('project_templates')
+          .select('*')
+          .eq('organization_id', userProfile.organization_id)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+
+        setTemplates(templatesData || [])
       } catch (err) {
-        console.error('Error fetching team members:', err)
+        console.error('Error fetching data:', err)
       }
     }
     
-    fetchTeamMembers()
+    fetchData()
   }, [userProfile])
 
   const handleChange = (field: string, value: string) => {
@@ -137,6 +150,26 @@ export default function NewProjectPage() {
       if (!data?.[0]) throw new Error('Failed to create project')
 
       const projectId = data[0].id
+
+      // Apply template if selected
+      if (selectedTemplate) {
+        try {
+          await fetch('/api/templates/apply', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              templateId: selectedTemplate,
+              projectId,
+              templateDates: {
+                startDate: formData.start_date,
+              },
+            }),
+          })
+        } catch (err) {
+          console.error('Error applying template:', err)
+          // Don't fail project creation if template apply fails
+        }
+      }
 
       // Add team members if selected
       if (selectedMembers.length > 0) {
@@ -246,6 +279,25 @@ export default function NewProjectPage() {
             {/* Step 1: Basics */}
             {currentStep === 1 && (
               <div className="space-y-6">
+                {templates.length > 0 && (
+                  <FieldGroup>
+                    <FieldLabel htmlFor="template">Start from Template (Optional)</FieldLabel>
+                    <Select value={selectedTemplate || ''} onValueChange={setSelectedTemplate}>
+                      <SelectTrigger id="template">
+                        <SelectValue placeholder="Select a template or start from scratch" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Blank Project</SelectItem>
+                        {templates.map((template) => (
+                          <SelectItem key={template.id} value={template.id}>
+                            {template.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FieldGroup>
+                )}
+
                 <FieldGroup>
                   <FieldLabel htmlFor="name">Project Name *</FieldLabel>
                   <Input

@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth-context'
-import { TaskViews } from '@/components/tasks/task-views'
+import { TaskListView } from '@/components/tasks/task-views'
 import { RichTextEditor } from '@/components/documents/rich-text-editor'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -18,6 +18,7 @@ import Link from 'next/link'
 
 type Project = Database['public']['Tables']['projects']['Row']
 type Phase = Database['public']['Tables']['phases']['Row']
+type Task = Database['public']['Tables']['tasks']['Row']
 
 interface DocumentSpace {
   id: string
@@ -36,6 +37,7 @@ export default function ProjectDetailPage() {
   const { userProfile } = useAuth()
   const [project, setProject] = useState<Project | null>(null)
   const [phases, setPhases] = useState<Phase[]>([])
+  const [tasks, setTasks] = useState<Task[]>([])
   const [spaces, setSpaces] = useState<DocumentSpace[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [activeSpace, setActiveSpace] = useState<string | null>(null)
@@ -65,6 +67,15 @@ export default function ProjectDetailPage() {
           .order('start_date', { ascending: true })
 
         setPhases(phasesData || [])
+
+        // Fetch tasks
+        const { data: tasksData } = await supabase
+          .from('tasks')
+          .select('*')
+          .eq('project_id', projectId)
+          .order('due_date', { ascending: true })
+
+        setTasks(tasksData || [])
 
         // Fetch spaces
         const { data: spacesData } = await supabase
@@ -142,7 +153,7 @@ export default function ProjectDetailPage() {
         </TabsList>
 
         <TabsContent value="tasks">
-          <TaskViews projectId={projectId} />
+          <TaskListView projectId={projectId} tasks={tasks} />
         </TabsContent>
 
         <TabsContent value="spaces" className="space-y-4">

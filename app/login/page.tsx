@@ -35,13 +35,17 @@ export default function LoginPage() {
         return
       }
 
-      // Store user info in session storage
+      // Store user info in session storage (client-side state)
       sessionStorage.setItem('user_id', result.user.id)
       sessionStorage.setItem('email', result.user.email)
       sessionStorage.setItem('organization_id', result.user.organization_id)
       sessionStorage.setItem('role', result.user.role)
       sessionStorage.setItem('full_name', result.user.full_name)
 
+      // Store user_id in cookie for middleware
+      document.cookie = `user_id=${result.user.id}; path=/; max-age=86400`
+
+      console.log('[v0] Login successful, redirecting to dashboard')
       router.push('/dashboard')
     } catch (err) {
       console.error('[v0] Login error:', err)
@@ -70,13 +74,17 @@ export default function LoginPage() {
         return
       }
 
-      // Store user info in session storage
+      // Store user info in session storage (client-side state)
       sessionStorage.setItem('user_id', result.user.id)
       sessionStorage.setItem('email', result.user.email)
       sessionStorage.setItem('organization_id', result.user.organization_id)
       sessionStorage.setItem('role', result.user.role)
       sessionStorage.setItem('full_name', result.user.full_name)
 
+      // Store user_id in cookie for middleware
+      document.cookie = `user_id=${result.user.id}; path=/; max-age=86400`
+
+      console.log('[v0] Test login successful, redirecting to dashboard')
       router.push('/dashboard')
     } catch (err) {
       console.error('[v0] Test login error:', err)

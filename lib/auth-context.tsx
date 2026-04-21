@@ -30,6 +30,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const role = sessionStorage.getItem('role')
         const fullName = sessionStorage.getItem('full_name')
 
+        console.log('[v0] Initializing auth, userId:', userId, 'email:', email)
+
         if (userId && email && organizationId && role && fullName) {
           setUserProfile({
             id: userId,
@@ -44,7 +46,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           })
+          console.log('[v0] User authenticated:', fullName)
         } else {
+          console.log('[v0] No user session found')
           setUserProfile(null)
         }
       } catch (error) {
@@ -67,7 +71,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       sessionStorage.removeItem('role')
       sessionStorage.removeItem('full_name')
 
+      // Clear cookie
+      document.cookie = 'user_id=; path=/; max-age=0'
+
       setUserProfile(null)
+      console.log('[v0] User logged out')
       router.push('/login')
     } catch (error) {
       console.error('[v0] Logout error:', error)

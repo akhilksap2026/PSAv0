@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth-context'
+import { TimesheetApprovalList } from '@/components/timesheets/timesheet-approval-list'
+import { TimesheetHistory } from '@/components/timesheets/timesheet-history'
+import { TimeOffRequestForm } from '@/components/timesheets/time-off-request-form'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -349,30 +352,33 @@ export default function TimesheetsPage() {
                 </table>
               </div>
 
-              <div className="flex gap-3 justify-end pt-4">
-                <Button variant="outline">Save as Draft</Button>
-                <Button onClick={handleSubmitTimesheet} disabled={isSaving}>
-                  {isSaving ? 'Submitting...' : 'Submit Timesheet'}
-                </Button>
+              <div className="flex gap-3 justify-between pt-4">
+                <TimeOffRequestForm />
+                <div className="flex gap-3">
+                  <Button variant="outline">Save as Draft</Button>
+                  <Button onClick={handleSubmitTimesheet} disabled={isSaving}>
+                    {isSaving ? 'Submitting...' : 'Submit Timesheet'}
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="approvals">
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-muted-foreground">Coming soon - Timesheet approvals (Admin only)</p>
-            </CardContent>
-          </Card>
+          {userProfile?.role === 'admin' || userProfile?.role === 'manager' ? (
+            <TimesheetApprovalList />
+          ) : (
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-muted-foreground text-center py-8">Only managers can approve timesheets</p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="history">
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-muted-foreground">Previous timesheets will appear here</p>
-            </CardContent>
-          </Card>
+          <TimesheetHistory />
         </TabsContent>
       </Tabs>
     </div>

@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -21,25 +20,27 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      // Check if user exists in database
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('id, organization_id, role, email, full_name')
-        .eq('email', email)
-        .single()
+      // Call backend API to verify user
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      })
 
-      if (userError || !userData) {
+      const result = await response.json()
+
+      if (!response.ok || !result.user) {
         setError('User not found. Try a demo account below.')
         setIsLoading(false)
         return
       }
 
       // Store user info in session storage
-      sessionStorage.setItem('user_id', userData.id)
-      sessionStorage.setItem('email', userData.email)
-      sessionStorage.setItem('organization_id', userData.organization_id)
-      sessionStorage.setItem('role', userData.role)
-      sessionStorage.setItem('full_name', userData.full_name)
+      sessionStorage.setItem('user_id', result.user.id)
+      sessionStorage.setItem('email', result.user.email)
+      sessionStorage.setItem('organization_id', result.user.organization_id)
+      sessionStorage.setItem('role', result.user.role)
+      sessionStorage.setItem('full_name', result.user.full_name)
 
       router.push('/dashboard')
     } catch (err) {
@@ -54,24 +55,27 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('id, organization_id, role, email, full_name')
-        .eq('email', testEmail)
-        .single()
+      // Call backend API to verify user
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: testEmail })
+      })
 
-      if (userError || !userData) {
+      const result = await response.json()
+
+      if (!response.ok || !result.user) {
         setError('Test user not found')
         setIsLoading(false)
         return
       }
 
       // Store user info in session storage
-      sessionStorage.setItem('user_id', userData.id)
-      sessionStorage.setItem('email', userData.email)
-      sessionStorage.setItem('organization_id', userData.organization_id)
-      sessionStorage.setItem('role', userData.role)
-      sessionStorage.setItem('full_name', userData.full_name)
+      sessionStorage.setItem('user_id', result.user.id)
+      sessionStorage.setItem('email', result.user.email)
+      sessionStorage.setItem('organization_id', result.user.organization_id)
+      sessionStorage.setItem('role', result.user.role)
+      sessionStorage.setItem('full_name', result.user.full_name)
 
       router.push('/dashboard')
     } catch (err) {

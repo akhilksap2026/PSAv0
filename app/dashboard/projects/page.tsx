@@ -21,18 +21,25 @@ export default function ProjectsPage() {
     const fetchProjects = async () => {
       if (!userProfile) return
 
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('organization_id', userProfile.organization_id)
-        .order('created_at', { ascending: false })
-
-      if (error) {
-        console.error('Error fetching projects:', error)
-      } else {
-        setProjects(data || [])
+      try {
+        const response = await fetch('/api/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ organizationId: userProfile.organization_id })
+        })
+        
+        const result = await response.json()
+        
+        if (result.error) {
+          console.error('Error fetching projects:', result.error)
+        } else {
+          setProjects(result.data || [])
+        }
+      } catch (err) {
+        console.error('Fetch error:', err)
+      } finally {
+        setIsLoading(false)
       }
-      setIsLoading(false)
     }
 
     fetchProjects()

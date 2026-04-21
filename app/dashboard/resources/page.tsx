@@ -4,11 +4,12 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth-context'
+import { SkillsMatrix } from '@/components/resources/skills-matrix'
+import { AllocationGrid } from '@/components/resources/allocation-grid'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Users, Briefcase } from 'lucide-react'
 
 type User = Database['public']['Tables']['users']['Row']
@@ -168,10 +169,7 @@ export default function ResourcesPage() {
               <CardDescription>Team member expertise and certifications</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-muted-foreground">
-                <p>Skills tracking coming soon</p>
-                <p className="text-xs mt-2">Define and track team skills, proficiency levels, and certifications</p>
-              </div>
+              <SkillsMatrix />
             </CardContent>
           </Card>
         </TabsContent>
@@ -220,10 +218,7 @@ export default function ResourcesPage() {
               <CardDescription>Pending resource allocation requests</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-muted-foreground">
-                <p>Resource request workflow coming soon</p>
-                <p className="text-xs mt-2">Submit and manage resource requests across projects</p>
-              </div>
+              <AllocationGrid />
             </CardContent>
           </Card>
         </TabsContent>

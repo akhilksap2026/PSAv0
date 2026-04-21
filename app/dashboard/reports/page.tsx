@@ -161,6 +161,8 @@ export default function ReportsPage() {
           <TabsTrigger value="projects">Project Performance</TabsTrigger>
           <TabsTrigger value="financial">Financial</TabsTrigger>
           <TabsTrigger value="team">Team Utilization</TabsTrigger>
+          <TabsTrigger value="budgetForecast">Budget Forecast</TabsTrigger>
+          <TabsTrigger value="skillsUtilization">Skills Matrix</TabsTrigger>
         </TabsList>
 
         <TabsContent value="projects" className="space-y-4">
@@ -249,18 +251,245 @@ export default function ReportsPage() {
         <TabsContent value="team">
           <Card>
             <CardHeader>
-              <CardTitle>Team Utilization</CardTitle>
+              <CardTitle>Team Utilization Report</CardTitle>
               <CardDescription>Workforce allocation and capacity analysis</CardDescription>
             </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Team utilization metrics */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Avg Utilization</p>
+                    <p className="text-2xl font-bold">75%</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Over-allocated</p>
+                    <p className="text-2xl font-bold text-orange-600">2</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Capacity Available</p>
+                    <p className="text-2xl font-bold text-blue-600">25%</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-3">Team Members by Utilization</h4>
+                <div className="space-y-3">
+                  {[
+                    { name: 'Alice Johnson', util: 95, status: 'Over-allocated' },
+                    { name: 'Bob Smith', util: 80, status: 'Well-allocated' },
+                    { name: 'Carol White', util: 60, status: 'Available capacity' },
+                    { name: 'David Brown', util: 70, status: 'Well-allocated' },
+                  ].map((member) => (
+                    <div key={member.name} className="flex items-center gap-3">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">{member.name}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="flex-1 bg-muted rounded-full h-2">
+                            <div
+                              className={`h-2 rounded-full ${
+                                member.util > 90
+                                  ? 'bg-red-500'
+                                  : member.util > 75
+                                    ? 'bg-orange-500'
+                                    : 'bg-green-500'
+                              }`}
+                              style={{ width: `${member.util}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-xs text-muted-foreground w-8 text-right">{member.util}%</span>
+                        </div>
+                      </div>
+                      <Badge variant="secondary" className="text-xs">
+                        {member.status}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Export button */}
+              <div className="pt-4 border-t">
+                <Button variant="outline" className="gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  Export Report
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Skills Utilization Report */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Skills Utilization Report</CardTitle>
+              <CardDescription>In-demand skills and expertise gaps</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                {[
+                  { skill: 'React', count: 8, needed: 3, match: 73 },
+                  { skill: 'Project Management', count: 5, needed: 4, match: 56 },
+                  { skill: 'AWS', count: 3, needed: 5, match: 38 },
+                  { skill: 'DevOps', count: 2, needed: 3, match: 67 },
+                ].map((item) => (
+                  <div key={item.skill} className="border rounded p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="font-medium text-sm">{item.skill}</p>
+                      <Badge variant="outline">{item.count} experts</Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 text-xs">
+                      <div>
+                        <p className="text-muted-foreground">Available</p>
+                        <p className="font-semibold">{item.count}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Needed</p>
+                        <p className="font-semibold">{item.needed}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Capacity Planning */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Capacity Planning (Next 3 Months)</CardTitle>
+              <CardDescription>Forecast resource needs and availability</CardDescription>
+            </CardHeader>
             <CardContent>
-              <div className="text-muted-foreground">
-                <p>Team utilization metrics and analytics coming soon</p>
-                <p className="text-xs mt-2">Track individual team member allocation across projects and capacity planning</p>
+              <div className="space-y-3">
+                {['January', 'February', 'March'].map((month) => (
+                  <div key={month} className="border rounded p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="font-medium text-sm">{month}</p>
+                      <span className="text-xs text-muted-foreground">15 slots available</span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-2">
+                      <div
+                        className="h-2 rounded-full bg-primary"
+                        style={{ width: '60%' }}
+                      ></div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
-      </Tabs>
-    </div>
-  )
-}
+
+        <TabsContent value="budgetForecast" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Budget Forecast</CardTitle>
+              <CardDescription>Projected spending based on current trends</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-4 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Current Quarter</p>
+                  <p className="text-2xl font-bold">$45,230</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Forecast Q2</p>
+                  <p className="text-2xl font-bold">$52,100</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Annual Budget</p>
+                  <p className="text-2xl font-bold">$180,000</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Remaining</p>
+                  <p className="text-2xl font-bold text-blue-600">$134,770</p>
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-3">Spending by Project</h4>
+                <div className="space-y-3">
+                  {[
+                    { name: 'Website Redesign', spent: 18000, budget: 25000, progress: 72 },
+                    { name: 'Mobile App', spent: 12500, budget: 20000, progress: 63 },
+                    { name: 'API Integration', spent: 8200, budget: 15000, progress: 55 },
+                    { name: 'Infrastructure', spent: 6530, budget: 10000, progress: 65 },
+                  ].map((project) => (
+                    <div key={project.name} className="border rounded p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="font-medium text-sm">{project.name}</p>
+                        <span className="text-xs text-muted-foreground">
+                          ${project.spent.toLocaleString()} / ${project.budget.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full ${
+                            project.progress > 80 ? 'bg-red-500' : 'bg-blue-500'
+                          }`}
+                          style={{ width: `${project.progress}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="skillsUtilization" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Skills & Expertise Report</CardTitle>
+              <CardDescription>Team capabilities and expertise matrix</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-3">
+                {[
+                  { skill: 'React / Frontend', experts: 8, intermediate: 3, beginners: 1, demand: 'High' },
+                  { skill: 'Node.js / Backend', experts: 5, intermediate: 4, beginners: 2, demand: 'High' },
+                  { skill: 'AWS / Cloud', experts: 3, intermediate: 2, beginners: 1, demand: 'Very High' },
+                  { skill: 'DevOps / CI-CD', experts: 2, intermediate: 3, beginners: 0, demand: 'Medium' },
+                  { skill: 'Database Design', experts: 4, intermediate: 5, beginners: 2, demand: 'High' },
+                  { skill: 'Project Management', experts: 3, intermediate: 4, beginners: 3, demand: 'Medium' },
+                ].map((item) => (
+                  <div key={item.skill} className="border rounded p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="font-medium">{item.skill}</p>
+                      <Badge variant={item.demand === 'Very High' ? 'destructive' : 'secondary'}>
+                        Demand: {item.demand}
+                      </Badge>
+                    </div>
+                    <div className="flex gap-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Expert:</span>{' '}
+                        <span className="font-semibold text-green-600">{item.experts}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Intermediate:</span>{' '}
+                        <span className="font-semibold text-blue-600">{item.intermediate}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Beginner:</span>{' '}
+                        <span className="font-semibold text-yellow-600">{item.beginners}</span>
+                      </div>
+                      <div className="ml-auto">
+                        <span className="text-muted-foreground">Total:</span>{' '}
+                        <span className="font-semibold">{item.experts + item.intermediate + item.beginners}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="pt-4 border-t">
+                <Button variant="outline" className="gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  Export Skills Report
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>

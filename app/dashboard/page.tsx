@@ -1,14 +1,36 @@
 'use client'
 
 import { useAuth } from '@/lib/auth-context'
+import { DashboardHeader } from './header'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 
 export default function DashboardPage() {
-  const { userProfile } = useAuth()
+  const { userProfile, isLoading } = useAuth()
+
+  if (isLoading) {
+    return (
+      <div className="p-8 space-y-8">
+        <div className="animate-pulse">
+          <div className="h-10 bg-gray-200 rounded w-1/3 mb-2"></div>
+          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!userProfile) {
+    return (
+      <div className="p-8">
+        <p className="text-red-500">Unable to load user profile. Please log in again.</p>
+      </div>
+    )
+  }
 
   return (
-    <div className="p-8 space-y-8">
+    <>
+      <DashboardHeader />
+      <div className="p-8 space-y-8">
       <div>
         <h1 className="text-4xl font-bold tracking-tight">Welcome back, {userProfile?.full_name}!</h1>
         <p className="text-muted-foreground mt-2">Here&apos;s an overview of your projects and tasks.</p>
@@ -100,6 +122,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </>
   )
 }

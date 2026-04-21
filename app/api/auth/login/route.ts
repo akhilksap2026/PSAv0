@@ -13,6 +13,62 @@ const supabaseAdmin = createClient(
   }
 )
 
+// Demo users configuration
+const DEMO_USERS = [
+  {
+    email: 'admin@example.com',
+    full_name: 'Admin User',
+    role: 'admin'
+  },
+  {
+    email: 'pm@example.com',
+    full_name: 'Project Manager',
+    role: 'project_manager'
+  },
+  {
+    email: 'developer@example.com',
+    full_name: 'Team Member',
+    role: 'team_member'
+  },
+  {
+    email: 'resource@example.com',
+    full_name: 'Resource Manager',
+    role: 'resource_manager'
+  }
+]
+
+const DEFAULT_ORG_ID = '550e8400-e29b-41d4-a716-446655440000'
+
+async function ensureDemoUsersExist() {
+  try {
+    // Check if demo users exist, if not create them
+    for (const demoUser of DEMO_USERS) {
+      const { data: existingUser } = await supabaseAdmin
+        .from('users')
+        .select('id')
+        .eq('email', demoUser.email)
+        .single()
+
+      if (!existingUser) {
+        // Create the user
+        await supabaseAdmin.from('users').insert({
+          id: `550e8400-e29b-41d4-a716-${demoUser.role.substring(0, 12).padEnd(12, '0')}`,
+          email: demoUser.email,
+          full_name: demoUser.full_name,
+          role: demoUser.role,
+          organization_id: DEFAULT_ORG_ID,
+          is_active: true,
+          hourly_cost: demoUser.role === 'admin' ? 150 : 100
+        })
+
+        console.log('[v0] Created demo user:', demoUser.email)
+      }
+    }
+  } catch (err) {
+    console.error('[v0] Error ensuring demo users:', err)
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { email } = await request.json()
@@ -24,7 +80,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('[v0] Looking up user:', email)
+    console.log('[v0] Login attempt for:', email)
+
+    // Ensure demo users exist first
+    await ensureDemoUsersExist()
 
     // Query users table with service role key (bypasses RLS)
     const { data: user, error } = await supabaseAdmin
@@ -41,7 +100,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('[v0] User found:', user.email, '- Role:', user.role)
+    console.log('[v0] User authenticated:', user.email, '- Role:', user.role)
 
     return NextResponse.json({ user })
   } catch (err) {

@@ -12,11 +12,16 @@ import {
   Users,
   BarChart3,
   Settings,
+  FileText,
+  Zap,
+  GitPullRequest,
 } from 'lucide-react'
 
 const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Projects', href: '/dashboard/projects', icon: Briefcase },
+  { name: 'Templates', href: '/dashboard/projects/templates', icon: FileText },
+  { name: 'Resource Requests', href: '/dashboard/resource-requests', icon: GitPullRequest },
   { name: 'Time Tracking', href: '/dashboard/timesheets', icon: Clock },
   { name: 'Resources', href: '/dashboard/resources', icon: Users },
   { name: 'Reports', href: '/dashboard/reports', icon: BarChart3 },

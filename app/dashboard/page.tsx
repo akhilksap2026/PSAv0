@@ -31,10 +31,10 @@ export default function DashboardPage() {
     <>
       <DashboardHeader />
       <div className="p-8 space-y-8">
-      <div>
-        <h1 className="text-4xl font-bold tracking-tight">Welcome back, {userProfile?.full_name}!</h1>
-        <p className="text-muted-foreground mt-2">Here&apos;s an overview of your projects and tasks.</p>
-      </div>
+        <div>
+          <h1 className="text-4xl font-bold tracking-tight">Welcome back, {userProfile?.full_name}!</h1>
+          <p className="text-muted-foreground mt-2">Here&apos;s an overview of your projects and tasks.</p>
+        </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>

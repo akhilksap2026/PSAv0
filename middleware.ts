@@ -4,7 +4,7 @@ export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
   // Protected routes that require authentication
-  const protectedRoutes = ['/dashboard', '/projects', '/tasks', '/timesheets', '/resources']
+  const protectedRoutes = ['/dashboard']
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
 
   if (isProtectedRoute) {
@@ -15,6 +15,7 @@ export function middleware(request: NextRequest) {
       // Redirect to login if not authenticated
       return NextResponse.redirect(new URL('/login', request.url))
     }
+    return NextResponse.next()
   }
 
   // Allow login page to be accessible

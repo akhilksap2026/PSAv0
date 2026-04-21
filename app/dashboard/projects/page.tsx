@@ -19,20 +19,41 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     const fetchProjects = async () => {
-      if (!userProfile) return
-
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('organization_id', userProfile.organization_id)
-        .order('created_at', { ascending: false })
-
-      if (error) {
-        console.error('Error fetching projects:', error)
-      } else {
-        setProjects(data || [])
+      console.log('[v0] Projects useEffect running, userProfile:', userProfile)
+      
+      if (!userProfile) {
+        console.log('[v0] No userProfile yet, skipping fetch')
+        return
       }
-      setIsLoading(false)
+
+      console.log('[v0] Fetching projects for org:', userProfile.organization_id)
+
+      try {
+        const response = await fetch('/api/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ organizationId: userProfile.organization_id })
+        })
+        
+        console.log('[v0] API response status:', response.status)
+        const result = await response.json()
+        
+        console.log('[v0] API response object:', JSON.stringify(result))
+        
+        if (result.error) {
+          console.error('[v0] API error:', result.error)
+          setProjects([])
+        } else {
+          const projectsData = result.data || []
+          console.log('[v0] Projects received:', projectsData?.length || 0, projectsData)
+          setProjects(projectsData)
+        }
+      } catch (err) {
+        console.error('[v0] Fetch error:', err)
+        setProjects([])
+      } finally {
+        setIsLoading(false)
+      }
     }
 
     fetchProjects()
@@ -122,7 +143,7 @@ export default function ProjectsPage() {
                   </div>
                   <div>
                     <p className="text-muted-foreground text-xs">Billing Method</p>
-                    <p className="font-medium capitalize">{project.billing_method.replace(/_/g, ' ')}</p>
+                    <p className="font-medium capitalize">{(project.billing_method || 'not_set').replace(/_/g, ' ')}</p>
                   </div>
                 </CardContent>
               </Card>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useAuth } from '@/lib/auth-context'
+import { ResetDataButton } from '@/components/admin/reset-data-button'
 import { Button } from '@/components/ui/button'
 import { LogOut } from 'lucide-react'
 
@@ -14,15 +15,18 @@ export function DashboardHeader() {
           <h1 className="text-xl font-bold">PSA RocketLine</h1>
           <p className="text-sm text-muted-foreground">{userProfile?.full_name}</p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={logout}
-          className="flex items-center gap-2"
-        >
-          <LogOut className="h-4 w-4" />
-          Logout
-        </Button>
+        <div className="flex items-center gap-3">
+          <ResetDataButton />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={logout}
+            className="flex items-center gap-2"
+          >
+            <LogOut className="h-4 w-4" />
+            Logout
+          </Button>
+        </div>
       </div>
     </header>
   )
